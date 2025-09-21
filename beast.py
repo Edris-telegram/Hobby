@@ -11,7 +11,7 @@ import tweepy
 API_ID = "27403368"
 API_HASH = "7cfc7759b82410f5d90641d6fc415f"
 SESSION = "session"               # session.session
-WATCH_GROUPS = [-1002773302526]   # group id(s)
+WATCH_GROUPS = [-1002786329549]   # group id(s)
 RAID_BOT_IDS = [5994885234]       # allowed raid bot ID(s)
 LOG_FILE = "raid_training_data.json"
 
