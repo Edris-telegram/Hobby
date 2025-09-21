@@ -5,6 +5,7 @@ import re
 import json
 import random
 import threading
+import asyncio
 from datetime import datetime
 from flask import Flask, jsonify
 from telethon import TelegramClient, events, functions
@@ -133,7 +134,6 @@ async def click_inline_button(client, message, match_texts=("👊",)):
             lbl = getattr(btn, "text", "") or ""
             if any(mt.lower() in lbl.lower() for mt in match_texts):
                 try:
-                    # Attempt to call the bot callback
                     res = await client(functions.messages.GetBotCallbackAnswerRequest(
                         peer=message.to_id,
                         msg_id=message.id,
@@ -162,7 +162,6 @@ else:
             sender_id = getattr(sender, "id", None)
 
             if RAID_BOT_IDS and (not sender_id or sender_id not in RAID_BOT_IDS):
-                # ignore messages not from allowed bot ids (if RAID_BOT_IDS set)
                 return
 
             tweet_url, tweet_id = extract_tweet(msg.text or "")
@@ -218,7 +217,6 @@ def health():
 
 @app.route("/metrics")
 def metrics():
-    # simple metric: number of tweets replied to in this process
     return jsonify({"sent_tweet_count": len(sent_tweet_ids)})
 
 def start_telegram_client():
@@ -227,9 +225,11 @@ def start_telegram_client():
         return
     try:
         print("[TELEGRAM] Starting Telegram client...")
-        client.start()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(client.start())
         print("[TELEGRAM] Connected. Now waiting for events...")
-        client.run_until_disconnected()
+        loop.run_until_complete(client.run_until_disconnected())
     except Exception as e:
         print("[TELEGRAM] Client error:", e)
 
@@ -237,10 +237,7 @@ def start_telegram_client():
 # Entrypoint
 # ------------------
 if __name__ == "__main__":
-    # Start Telegram client in background thread so Flask can serve the port
     t = threading.Thread(target=start_telegram_client, daemon=True)
     t.start()
-
-    # Start Flask (bind to PORT so Render detects an open port)
     print(f"[FLASK] Starting server on 0.0.0.0:{PORT}")
     app.run(host="0.0.0.0", port=PORT)
