@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# beast.py
 import os
 import re
 import json
@@ -12,7 +11,7 @@ from telethon import TelegramClient, events, functions
 import tweepy
 
 # ------------------
-# Environment / config (all from env)
+# Environment / config
 # ------------------
 def _csv_to_int_list(s):
     if not s:
@@ -20,11 +19,11 @@ def _csv_to_int_list(s):
     return [int(x.strip()) for x in s.split(",") if x.strip()]
 
 # Telegram
-TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID", "0") or 0)
+TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 TELEGRAM_SESSION = os.getenv("TELEGRAM_SESSION", "session")
-WATCH_GROUPS = _csv_to_int_list(os.getenv("WATCH_GROUPS", ""))  # comma separated
-RAID_BOT_IDS = _csv_to_int_list(os.getenv("RAID_BOT_IDS", ""))  # comma separated
+WATCH_GROUPS = _csv_to_int_list(os.getenv("WATCH_GROUPS", ""))
+RAID_BOT_IDS = _csv_to_int_list(os.getenv("RAID_BOT_IDS", ""))
 LOG_FILE = os.getenv("LOG_FILE", "raid_training_data.json")
 
 # Twitter
@@ -38,7 +37,7 @@ TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN", "")
 PORT = int(os.getenv("PORT", 10000))
 
 # ------------------
-# Setup Twitter client (tweepy v4+)
+# Setup Twitter client (optional)
 # ------------------
 twitter_client = None
 if TWITTER_API_KEY and TWITTER_API_SECRET and TWITTER_ACCESS_TOKEN and TWITTER_ACCESS_TOKEN_SECRET:
@@ -50,26 +49,17 @@ if TWITTER_API_KEY and TWITTER_API_SECRET and TWITTER_ACCESS_TOKEN and TWITTER_A
             access_token=TWITTER_ACCESS_TOKEN,
             access_token_secret=TWITTER_ACCESS_TOKEN_SECRET
         )
+        print("[TWITTER] Client initialized")
     except Exception as e:
-        print("[WARN] Failed to init tweepy client:", e)
+        print("[WARN] Twitter client init failed:", e)
 else:
-    print("[WARN] Twitter credentials not fully set. Twitter replies will be skipped.")
+    print("[TWITTER] Credentials missing, skipping Twitter replies")
 
 # ------------------
 # Helpers
 # ------------------
-TRIAL_REPLIES = [
-    "Smash ✅🔥",
-    "In! 🚀",
-    "Let’s go fam 💯",
-    "Trial reply — automated"
-]
-
-TWEET_RE = re.compile(
-    r"(https?://(?:t\.co|(?:mobile\.)?twitter\.com|(?:www\.)?twitter\.com|x\.com)/[^\s]+/status(?:es)?/(\d+))",
-    re.IGNORECASE
-)
-
+TRIAL_REPLIES = ["Smash ✅🔥", "In! 🚀", "Let’s go fam 💯", "Trial reply — automated"]
+TWEET_RE = re.compile(r"(https?://(?:t\.co|twitter\.com|x\.com)/[^\s]+/status(?:es)?/(\d+))", re.IGNORECASE)
 sent_tweet_ids = set()
 
 def now_iso():
@@ -83,14 +73,14 @@ def save_json_append(path, entry):
         with open(path, "r+", encoding="utf-8") as f:
             try:
                 arr = json.load(f)
-            except Exception:
+            except:
                 arr = []
             arr.append(entry)
             f.seek(0)
             json.dump(arr, f, indent=2)
             f.truncate()
-    except Exception as e:
-        print("[WARN] Could not write log:", e)
+    except:
+        pass
 
 def extract_tweet(text):
     if not text:
@@ -100,30 +90,8 @@ def extract_tweet(text):
         return m.group(1), m.group(2)
     return None, None
 
-def get_random_message(file_path="messages.txt"):
-    if not os.path.exists(file_path):
-        return random.choice(TRIAL_REPLIES)
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f if line.strip()]
-        if not lines:
-            return random.choice(TRIAL_REPLIES)
-        return random.choice(lines)
-    except Exception as e:
-        print("[WARN] Error reading messages file:", e)
-        return random.choice(TRIAL_REPLIES)
-
-def reply_on_twitter(tweet_url, tweet_id, reply_text):
-    if not twitter_client:
-        print("[WARN] No twitter client: skipping reply")
-        return None
-    try:
-        resp = twitter_client.create_tweet(text=reply_text, in_reply_to_tweet_id=tweet_id)
-        print(f"[TWITTER] Replied to {tweet_url}: {reply_text}")
-        return getattr(resp, "data", None)
-    except Exception as e:
-        print("[ERROR] Twitter reply failed:", e)
-        return None
+def get_random_message():
+    return random.choice(TRIAL_REPLIES)
 
 async def click_inline_button(client, message, match_texts=("👊",)):
     buttons = getattr(message, "buttons", None) or getattr(message, "reply_markup", None)
@@ -139,19 +107,26 @@ async def click_inline_button(client, message, match_texts=("👊",)):
                         msg_id=message.id,
                         data=btn.data or b""
                     ))
-                    print(f"[🔘] Clicked inline button: {lbl}")
                     return {"clicked": True, "button_text": lbl, "callback_result": str(res)}
-                except Exception as e:
-                    return {"clicked": False, "button_text": lbl, "error": repr(e)}
+                except:
+                    return {"clicked": False, "button_text": lbl, "error": "failed"}
     return {"clicked": False, "reason": "no_matching_label"}
 
+def reply_on_twitter(tweet_url, tweet_id, reply_text):
+    if not twitter_client:
+        return None
+    try:
+        resp = twitter_client.create_tweet(text=reply_text, in_reply_to_tweet_id=tweet_id)
+        print(f"[TWITTER] Replied to {tweet_url}: {reply_text}")
+        return getattr(resp, "data", None)
+    except Exception as e:
+        print("[ERROR] Twitter reply failed:", e)
+        return None
+
 # ------------------
-# Telegram client and handler
+# Telegram client
 # ------------------
-if not TELEGRAM_API_ID or not TELEGRAM_API_HASH:
-    print("[ERROR] TELEGRAM_API_ID or TELEGRAM_API_HASH not set. Telegram functionality disabled.")
-    client = None
-else:
+if TELEGRAM_API_ID and TELEGRAM_API_HASH:
     client = TelegramClient(TELEGRAM_SESSION, TELEGRAM_API_ID, TELEGRAM_API_HASH)
 
     @client.on(events.NewMessage(chats=WATCH_GROUPS or None, incoming=True))
@@ -160,26 +135,17 @@ else:
             msg = event.message
             sender = await event.get_sender()
             sender_id = getattr(sender, "id", None)
-
             if RAID_BOT_IDS and (not sender_id or sender_id not in RAID_BOT_IDS):
                 return
-
             tweet_url, tweet_id = extract_tweet(msg.text or "")
             if not tweet_id:
                 return
-
-            print(f"\n🚨 [RAID DETECTED] Tweet: {tweet_url}")
-
-            click_result = await click_inline_button(client, msg, match_texts=("👊", "smash", "SMASH"))
+            click_result = await click_inline_button(client, msg)
             message_to_send = get_random_message()
-
             twitter_data = None
             if tweet_id not in sent_tweet_ids:
                 sent_tweet_ids.add(tweet_id)
                 twitter_data = reply_on_twitter(tweet_url, tweet_id, message_to_send)
-            else:
-                print("[WARN] Already replied to tweet:", tweet_id)
-
             entry = {
                 "time": now_iso(),
                 "chat_id": getattr(event, "chat_id", None),
@@ -191,47 +157,36 @@ else:
                 "twitter_response": twitter_data
             }
             save_json_append(LOG_FILE, entry)
-
-        except Exception as e:
-            print("[ERROR] Handler exception:", repr(e))
+        except:
+            pass
+else:
+    client = None
+    print("[TELEGRAM] Missing API ID or HASH, skipping Telegram")
 
 # ------------------
-# Flask dummy app (keeps Render happy)
+# Flask dummy server
 # ------------------
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    info = {
-        "status": "ok",
-        "service": "beast",
-        "telegram_enabled": bool(client),
-        "watch_groups": WATCH_GROUPS,
-        "timestamp": now_iso()
-    }
-    return jsonify(info)
+    return jsonify({"status": "ok", "service": "beast", "telegram_enabled": bool(client), "timestamp": now_iso()})
 
 @app.route("/health")
 def health():
     return "healthy", 200
 
-@app.route("/metrics")
-def metrics():
-    return jsonify({"sent_tweet_count": len(sent_tweet_ids)})
-
+# ------------------
+# Start Telegram in background thread
+# ------------------
 def start_telegram_client():
     if not client:
-        print("[INFO] Telegram client not configured; skipping start.")
         return
-    try:
-        print("[TELEGRAM] Starting Telegram client...")
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(client.start())
-        print("[TELEGRAM] Connected. Now waiting for events...")
-        loop.run_until_complete(client.run_until_disconnected())
-    except Exception as e:
-        print("[TELEGRAM] Client error:", e)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(client.start())
+    print("[TELEGRAM] Connected, waiting for events...")
+    loop.run_until_complete(client.run_until_disconnected())
 
 # ------------------
 # Entrypoint
