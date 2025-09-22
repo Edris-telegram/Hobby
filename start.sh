@@ -1,3 +1,3 @@
 #!/bin/bash
-python dummyweb.py &
-python beast.py
+python -W ignore dummyweb.py &
+python -W ignore raid.py
