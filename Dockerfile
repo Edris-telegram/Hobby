@@ -35,4 +35,4 @@ RUN playwright install --with-deps chromium
 EXPOSE 10000
 
 # Start the Twitter bot
-CMD ["python", "-u", "merge.py"]
+CMD ["python", "-u", "update.py"]
