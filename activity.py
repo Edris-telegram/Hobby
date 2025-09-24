@@ -14,7 +14,7 @@ SESSION_FILE = "session.session"   # make sure this file is uploaded to Railway
 GROUP_ID = -1003067016330          # your group ID
 DELAY_SECONDS = 10                 # reply interval
 
-HF_TOKEN = "your_huggingface_token_here"   # 🔹 put your HF token here
+HF_TOKEN = "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"   # 🔹 put your HF token here
 HF_MODEL = "google/flan-t5-base"  # better free model than gpt2
 
 if not HF_TOKEN:
