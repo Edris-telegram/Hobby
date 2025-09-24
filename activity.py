@@ -1,26 +1,26 @@
 # bot.py
+import os
 import asyncio
 import random
 import aiohttp
 from telethon import TelegramClient, errors
-from telethon.sessions import StringSession
 
 # ----------------------------
-# Hardcoded Config
+# Config
 # ----------------------------
-API_ID = 27403368
-API_HASH = "7cfc7759b82410f5d90641d6fc415f"
-SESSION = "session"   # your session string or session.session file
-GROUP_ID = -1003067016330  # group ID
-DELAY_SECONDS = 10     # 10 seconds delay
+API_ID = 27403368  # <-- your Telegram API ID
+API_HASH = "7cfc7759b82410f5d90641d6fc415f"  # <-- your Telegram API hash
+SESSION_FILE = "session.session"  # must be uploaded to Railway along with code
+GROUP_ID = -1003067016330         # replace with your group
+DELAY_SECONDS = 10                # reply interval
 
-HF_TOKEN = "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"
-HF_MODEL = "gpt2"  # you can change to another HuggingFace model
+HF_TOKEN = "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"  # <-- put your HF token here
+HF_MODEL = "gpt2"  # or another small free model
 
-# ----------------------------
-# Telegram client
-# ----------------------------
-client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
+if not HF_TOKEN:
+    raise RuntimeError("Missing HuggingFace token (HF_TOKEN)")
+
+client = TelegramClient(SESSION_FILE, API_ID, API_HASH)
 
 # ----------------------------
 # HuggingFace text generation
