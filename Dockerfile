@@ -25,14 +25,6 @@ WORKDIR /app
 # Copy everything to container
 COPY . .
 
-# Install Python requirements
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install Playwright and Chromium
-RUN playwright install --with-deps chromium
-
-# Expose port for web service (needed by Railway)
-EXPOSE 10000
 
 # Start the Twitter bot
-CMD ["python", "-u", "update.py"]
+CMD ["python", "-u", "activity.py"]
